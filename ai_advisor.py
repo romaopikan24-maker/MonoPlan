@@ -14,6 +14,11 @@ from models import (
     Transaction,
 )
 
+try:
+    from secrets_config import GEMINI_API_KEY as DEFAULT_GEMINI_API_KEY
+except ImportError:
+    DEFAULT_GEMINI_API_KEY = ""
+
 
 @dataclass
 class ChatMessage:
@@ -175,16 +180,20 @@ class GeminiFinancialAdvisor(IFinancialAdvisor):
     """Хмарний фінансовий чат-асистент на базі Google Gemini API."""
 
     BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
-    PREFERRED_PREFIXES = (
+    PREFERRED_MODELS = (
+        "gemini-3.8-flash",
         "gemini-2.5-flash",
         "gemini-2.0-flash",
-        "gemini-flash",
-        "gemini-2.5-pro",
-        "gemini-pro",
+        "gemini-flash-latest",
     )
 
-    def __init__(self, api_key: str):
-        self._api_key = api_key.strip()
+    def __init__(self, api_key: Optional[str] = None):
+        resolved_key = (
+            api_key.strip()
+            if isinstance(api_key, str) and api_key.strip()
+            else DEFAULT_GEMINI_API_KEY.strip()
+        )
+        self._api_key = resolved_key
         self._resolved_model: Optional[str] = None
 
     def _list_available_models(self) -> List[str]:
@@ -212,24 +221,43 @@ class GeminiFinancialAdvisor(IFinancialAdvisor):
         if self._resolved_model:
             return self._resolved_model
 
-        models = self._list_available_models()
-        if not models:
-            raise RuntimeError(
-                "Для цього API-ключа не знайдено жодної моделі з підтримкою generateContent."
-            )
+        try:
+            models = self._list_available_models()
+        except Exception:
+            models = []
 
-        for prefix in self.PREFERRED_PREFIXES:
+        if models:
+            for pref in self.PREFERRED_MODELS:
+                for m in models:
+                    if m == pref or m.startswith(pref):
+                        self._resolved_model = m
+                        return m
+
             for m in models:
-                if m == prefix or m.startswith(prefix):
+                if (
+                    "gemini" in m
+                    and "flash" in m
+                    and "embedding" not in m
+                    and "imagen" not in m
+                    and "veo" not in m
+                ):
                     self._resolved_model = m
                     return m
 
-        for m in models:
-            if "gemini" in m and "embedding" not in m and "imagen" not in m and "veo" not in m:
-                self._resolved_model = m
-                return m
+            for m in models:
+                if (
+                    "gemini" in m
+                    and "embedding" not in m
+                    and "imagen" not in m
+                    and "veo" not in m
+                ):
+                    self._resolved_model = m
+                    return m
 
-        self._resolved_model = models[0]
+            self._resolved_model = models[0]
+            return self._resolved_model
+
+        self._resolved_model = self.PREFERRED_MODELS[0]
         return self._resolved_model
 
     def reply(
@@ -244,7 +272,7 @@ class GeminiFinancialAdvisor(IFinancialAdvisor):
         manual_savings: Optional[List[ManualSavingEntry]] = None,
     ) -> str:
         if not self._api_key:
-            raise PermissionError("API-ключ Gemini не вказано.")
+            raise PermissionError("API-ключ Gemini не вказано в конфігурації проєкту.")
 
         system_instruction = FinancialPromptBuilder.build_system_instruction(
             jars=jars,
@@ -315,6 +343,7 @@ class GeminiFinancialAdvisor(IFinancialAdvisor):
             raise RuntimeError(f"Помилка Gemini API: HTTP {e.code}")
         except urllib.error.URLError as e:
             raise ConnectionError(f"Помилка з'єднання з Gemini API: {e.reason}")
+
 
 class LocalHeuristicAdvisor(IFinancialAdvisor):
     """Офлайн фінансовий чат-порадник із тематичним фільтром (резервний режим)."""
@@ -408,5 +437,5 @@ class LocalHeuristicAdvisor(IFinancialAdvisor):
             f"• Загальні накопичення: {total_saved:,.2f} грн\n"
             f"• Загальний борг: {total_debt:,.2f} грн\n"
             f"Уточніть, що саме обговоримо: графік погашення боргів, оптимізацію витрат чи розподіл коштів між банками? "
-            f"(Для вільного діалогу вкажіть безкоштовний ключ Gemini API вгорі цієї вкладки)."
+            f"(За потреби можна підключити хмарний ключ Gemini у конфігурації проєкту)."
         )

@@ -1,7 +1,7 @@
 from typing import List, Optional, Tuple
 import webbrowser
 
-from PyQt6.QtCore import QRectF, QRegularExpression, Qt, pyqtSignal
+from PyQt6.QtCore import QPoint, QRectF, QRegularExpression, Qt, pyqtSignal
 from PyQt6.QtGui import (
     QColor,
     QFont,
@@ -31,7 +31,7 @@ from models import CreditLiability, ManualSavingEntry, SavingsJar
 
 
 CATEGORY_COLOR_PALETTE: List[str] = [
-    "#2563EB",  # Синій
+    "#3B82F6",  # Синій
     "#F59E0B",  # Помаранчевий
     "#8B5CF6",  # Фіолетовий
     "#EC4899",  # Рожевий
@@ -44,7 +44,7 @@ CATEGORY_COLOR_PALETTE: List[str] = [
 ]
 
 MONO_JARS_DEFAULT_COLOR = "#10B981"
-MONO_ACCOUNT_DEFAULT_COLOR = "#111827"
+MONO_ACCOUNT_DEFAULT_COLOR = "#F43F5E"
 
 
 def pick_next_category_color(used_colors: List[str]) -> str:
@@ -57,277 +57,512 @@ def pick_next_category_color(used_colors: List[str]) -> str:
 
 
 MINIMALIST_QSS = """
+/* --- ФІРМОВИЙ ТЕМНИЙ ФОН MONOBANK --- */
 QMainWindow, QDialog, QWidget#Root {
-    background-color: #F7F8FA;
-    font-family: 'Segoe UI', 'Inter', Arial, sans-serif;
-    color: #111827;
+    background-color: #111215;
+    font-family: 'Segoe UI Variable', 'Segoe UI', 'Inter', Arial, sans-serif;
+    color: #F4F4F6;
 }
-QWidget#ChatContainer {
-    background-color: #FFFFFF;
+
+QDialog {
+    border: 1px solid #2C303B;
 }
-QFrame#TopBar, QFrame#Card {
-    background-color: #FFFFFF;
-    border: 1px solid #E5E7EB;
-    border-radius: 12px;
+
+QWidget#ChatContainer, QWidget#ScrollContent {
+    background-color: transparent;
 }
-QFrame#UserBubble {
-    background-color: #111827;
+
+/* --- КАСТОМНА ВЕРХНЯ ПОЛОСА ВІКНА ТА ДІАЛОГІВ --- */
+QFrame#WindowTitleBar {
+    background-color: #15171C;
+    border: 1px solid #252832;
     border-radius: 14px;
+}
+QLabel#WindowTitleText {
+    font-size: 13px;
+    font-weight: 700;
+    color: #E4E4E7;
+}
+QPushButton#WinBtn {
+    background-color: #20232B;
+    color: #D1D5DB;
+    border: 1px solid #2E323D;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+}
+QPushButton#WinBtn:hover {
+    background-color: #2C303B;
+    color: #FFFFFF;
+}
+QPushButton#WinCloseBtn {
+    background-color: #20232B;
+    color: #E5E7EB;
+    border: 1px solid #2E323D;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+}
+QPushButton#WinCloseBtn:hover {
+    background-color: #F43F5E;
+    border-color: #F43F5E;
+    color: #FFFFFF;
+}
+
+/* --- ПАНЕЛІ ТА КАРТКИ --- */
+QFrame#TopBar {
+    background-color: #191B20;
+    border: 1px solid #2A2D36;
+    border-radius: 18px;
+}
+
+QFrame#Card {
+    background-color: #191B20;
+    border: 1px solid #272A32;
+    border-radius: 16px;
+}
+
+/* --- БУЛЬБАШКИ ЧАТУ --- */
+QFrame#UserBubble {
+    background-color: #F4F4F6;
+    border-radius: 16px;
 }
 QFrame#AssistantBubble {
-    background-color: #F3F4F6;
-    border: 1px solid #E5E7EB;
-    border-radius: 14px;
+    background-color: #22252C;
+    border: 1px solid #2F333D;
+    border-radius: 16px;
 }
 QLabel#UserBubbleText {
     font-size: 13px;
-    color: #FFFFFF;
+    color: #111215;
+    font-weight: 500;
 }
 QLabel#UserBubbleMeta {
     font-size: 11px;
-    color: #9CA3AF;
+    color: #52525B;
 }
 QLabel#AssistantBubbleText {
     font-size: 13px;
-    color: #111827;
+    color: #F4F4F6;
 }
+
+/* --- ТИПОГРАФІКА --- */
 QLabel#AppTitle {
-    font-size: 18px;
-    font-weight: 700;
-    color: #111827;
+    font-size: 20px;
+    font-weight: 800;
+    color: #FFFFFF;
+    letter-spacing: -0.3px;
 }
 QLabel#SectionTitle {
     font-size: 14px;
-    font-weight: 600;
-    color: #374151;
+    font-weight: 700;
+    color: #E4E4E7;
 }
 QLabel#CardTitle {
     font-size: 14px;
     font-weight: 600;
-    color: #111827;
+    color: #FFFFFF;
 }
 QLabel#SubText {
     font-size: 12px;
-    color: #6B7280;
+    color: #9CA3AF;
 }
+
+/* --- СТАТУСИ ТА БЕЙДЖІ --- */
 QLabel#StatusBanner {
     font-size: 12px;
-    color: #4B5563;
-    padding: 4px 10px;
-    background-color: #F3F4F6;
-    border-radius: 6px;
+    font-weight: 500;
+    color: #D1D5DB;
+    padding: 5px 12px;
+    background-color: #23262E;
+    border: 1px solid #323642;
+    border-radius: 10px;
 }
 QLabel#BadgeGreen {
     font-size: 12px;
-    font-weight: 600;
-    color: #059669;
-    background-color: #ECFDF5;
-    padding: 4px 10px;
-    border-radius: 6px;
+    font-weight: 700;
+    color: #34D399;
+    background-color: rgba(16, 185, 129, 0.14);
+    border: 1px solid rgba(52, 211, 153, 0.28);
+    padding: 4px 11px;
+    border-radius: 10px;
 }
 QLabel#BadgeCustom {
     font-size: 11px;
     font-weight: 600;
-    color: #2563EB;
-    background-color: #EFF6FF;
-    padding: 2px 8px;
-    border-radius: 6px;
+    color: #60A5FA;
+    background-color: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(96, 165, 250, 0.28);
+    padding: 3px 9px;
+    border-radius: 9px;
 }
 QLabel#BadgeMono {
     font-size: 11px;
-    font-weight: 700;
-    color: #111827;
-    background-color: #F3F4F6;
-    padding: 2px 8px;
-    border-radius: 6px;
+    font-weight: 800;
+    color: #111215;
+    background-color: #FFFFFF;
+    padding: 3px 9px;
+    border-radius: 9px;
 }
 QLabel#BadgeCash {
     font-size: 11px;
     font-weight: 600;
-    color: #B45309;
-    background-color: #FEF3C7;
-    padding: 2px 8px;
-    border-radius: 6px;
+    color: #FBBF24;
+    background-color: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(251, 191, 36, 0.28);
+    padding: 3px 9px;
+    border-radius: 9px;
 }
 QLabel#PriorityBadge {
     font-size: 13px;
-    font-weight: 700;
-    color: #111827;
-    background-color: #F3F4F6;
-    border-radius: 8px;
+    font-weight: 800;
+    color: #FFFFFF;
+    background-color: #262932;
+    border: 1px solid #363A46;
+    border-radius: 10px;
 }
 QLabel#DebtAmount {
     font-size: 15px;
-    font-weight: 700;
-    color: #DC2626;
+    font-weight: 800;
+    color: #FB7185;
 }
+
 QCheckBox {
     font-size: 12px;
-    color: #374151;
+    font-weight: 500;
+    color: #D1D5DB;
     spacing: 6px;
 }
+
+/* --- ПОЛЯ ВВОДУ --- */
 QLineEdit, QDoubleSpinBox {
-    background-color: #F9FAFB;
-    border: 1px solid #D1D5DB;
-    border-radius: 8px;
-    padding: 8px 12px;
+    background-color: #121316;
+    border: 1px solid #2E323D;
+    border-radius: 12px;
+    padding: 8px 14px;
     font-size: 13px;
-    color: #111827;
+    color: #F9FAFB;
 }
 QLineEdit:focus, QDoubleSpinBox:focus {
-    border: 1px solid #111827;
-    background-color: #FFFFFF;
+    border: 1.5px solid #F43F5E;
+    background-color: #15171C;
 }
 QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
     width: 0px;
     height: 0px;
     border: none;
 }
+
+/* --- КНОПКИ --- */
 QPushButton#PrimaryBtn {
-    background-color: #111827;
-    color: #FFFFFF;
+    background-color: #FFFFFF;
+    color: #111215;
     border: none;
-    border-radius: 8px;
-    padding: 8px 16px;
+    border-radius: 12px;
+    padding: 8px 18px;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 700;
 }
 QPushButton#PrimaryBtn:hover {
-    background-color: #374151;
+    background-color: #E5E7EB;
 }
 QPushButton#PrimaryBtn:disabled {
-    background-color: #9CA3AF;
+    background-color: #374151;
+    color: #9CA3AF;
 }
+
 QPushButton#SecondaryBtn {
-    background-color: #FFFFFF;
-    color: #374151;
-    border: 1px solid #D1D5DB;
-    border-radius: 8px;
-    padding: 7px 12px;
+    background-color: #22252C;
+    color: #E5E7EB;
+    border: 1px solid #323642;
+    border-radius: 12px;
+    padding: 7px 14px;
     font-size: 12px;
-    font-weight: 500;
+    font-weight: 600;
 }
 QPushButton#SecondaryBtn:hover {
-    background-color: #F3F4F6;
+    background-color: #2B2F38;
+    border-color: #464B5B;
 }
+
 QPushButton#DangerBtn {
-    background-color: #FEF2F2;
-    color: #DC2626;
-    border: 1px solid #FECACA;
-    border-radius: 8px;
-    padding: 8px 14px;
+    background-color: rgba(244, 63, 94, 0.14);
+    color: #FB7185;
+    border: 1px solid rgba(244, 63, 94, 0.35);
+    border-radius: 12px;
+    padding: 8px 15px;
     font-size: 13px;
     font-weight: 600;
 }
 QPushButton#DangerBtn:hover {
-    background-color: #FEE2E2;
+    background-color: rgba(244, 63, 94, 0.24);
 }
+
 QPushButton#IconBtn {
-    background-color: #F9FAFB;
-    color: #374151;
-    border: 1px solid #E5E7EB;
-    border-radius: 6px;
+    background-color: #22252C;
+    color: #D1D5DB;
+    border: 1px solid #323642;
+    border-radius: 9px;
     font-size: 11px;
     font-weight: 600;
-    padding: 0px 8px;
+    padding: 0px 9px;
 }
 QPushButton#IconBtn:hover {
-    background-color: #E5E7EB;
-    color: #111827;
+    background-color: #2E323C;
+    color: #FFFFFF;
 }
 QPushButton#IconBtn:disabled {
-    color: #D1D5DB;
-    background-color: #F9FAFB;
+    color: #4B5563;
+    background-color: #191B20;
+    border-color: #23262E;
 }
+
 QPushButton#IconDangerBtn {
-    background-color: #FEF2F2;
-    color: #DC2626;
-    border: 1px solid #FECACA;
-    border-radius: 6px;
+    background-color: rgba(244, 63, 94, 0.14);
+    color: #FB7185;
+    border: 1px solid rgba(244, 63, 94, 0.3);
+    border-radius: 9px;
     font-size: 11px;
     font-weight: 700;
     padding: 0px 6px;
 }
 QPushButton#IconDangerBtn:hover {
-    background-color: #FEE2E2;
+    background-color: rgba(244, 63, 94, 0.25);
 }
+
 QPushButton#AddJarBtn {
-    background-color: #FFFFFF;
-    color: #4B5563;
-    border: 2px dashed #D1D5DB;
-    border-radius: 12px;
+    background-color: #17191E;
+    color: #9CA3AF;
+    border: 1.5px dashed #323642;
+    border-radius: 16px;
     font-size: 14px;
     font-weight: 600;
     padding: 12px;
 }
 QPushButton#AddJarBtn:hover {
-    background-color: #F9FAFB;
-    border-color: #111827;
-    color: #111827;
+    background-color: #1F2229;
+    border-color: #FFFFFF;
+    color: #FFFFFF;
 }
+
 QComboBox {
-    background-color: #FFFFFF;
-    border: 1px solid #D1D5DB;
-    border-radius: 8px;
+    background-color: #22252C;
+    border: 1px solid #323642;
+    border-radius: 12px;
     padding: 6px 12px;
     font-size: 12px;
-    color: #111827;
+    font-weight: 500;
+    color: #F4F4F6;
 }
+QComboBox QAbstractItemView {
+    background-color: #1B1D22;
+    color: #F4F4F6;
+    border: 1px solid #323642;
+    selection-background-color: #2D313C;
+}
+
+/* --- ПРОГРЕС-БАРИ --- */
 QProgressBar#GreenProgress {
-    background-color: #E5E7EB;
+    background-color: #272A32;
     border: none;
-    border-radius: 3px;
+    border-radius: 4px;
 }
 QProgressBar#GreenProgress::chunk {
     background-color: #10B981;
-    border-radius: 3px;
+    border-radius: 4px;
 }
 QProgressBar#DarkProgress {
-    background-color: #E5E7EB;
+    background-color: #272A32;
     border: none;
-    border-radius: 3px;
+    border-radius: 4px;
 }
 QProgressBar#DarkProgress::chunk {
-    background-color: #111827;
-    border-radius: 3px;
+    background-color: #F43F5E;
+    border-radius: 4px;
 }
+
+/* --- ВКЛАДКИ --- */
 QTabWidget::pane {
     border: none;
     background: transparent;
 }
+QTabBar {
+    background-color: #17191E;
+    border: 1px solid #262932;
+    border-radius: 14px;
+}
 QTabBar::tab {
     background: transparent;
-    color: #6B7280;
-    padding: 10px 18px;
+    color: #9CA3AF;
+    padding: 8px 18px;
+    margin: 4px;
     font-size: 13px;
     font-weight: 600;
-    border-bottom: 2px solid transparent;
+    border-radius: 10px;
+}
+QTabBar::tab:hover {
+    color: #FFFFFF;
+    background-color: #20232B;
 }
 QTabBar::tab:selected {
-    color: #111827;
-    border-bottom: 2px solid #111827;
-}
-QTableWidget {
     background-color: #FFFFFF;
-    border: 1px solid #E5E7EB;
-    border-radius: 12px;
-    gridline-color: #F3F4F6;
+    color: #111215;
+}
+
+/* --- ТАБЛИЦЯ ТРАНЗАКЦІЙ --- */
+QTableWidget {
+    background-color: #191B20;
+    border: 1px solid #272A32;
+    border-radius: 16px;
+    gridline-color: #23262E;
     font-size: 13px;
+    color: #F4F4F6;
 }
 QHeaderView::section {
-    background-color: #F9FAFB;
-    color: #6B7280;
-    font-weight: 600;
+    background-color: #1F2229;
+    color: #9CA3AF;
+    font-weight: 700;
     font-size: 12px;
-    padding: 8px;
+    padding: 10px 8px;
     border: none;
-    border-bottom: 1px solid #E5E7EB;
+    border-bottom: 1px solid #2D313C;
 }
-QScrollArea {
+
+/* --- ПРОЗОРИЙ СКРОЛ ТА СКРОЛБАРИ --- */
+QScrollArea, QScrollArea > QWidget > QWidget {
     border: none;
     background: transparent;
 }
+QScrollBar:vertical {
+    background: transparent;
+    width: 8px;
+    margin: 2px;
+}
+QScrollBar::handle:vertical {
+    background: #2E323D;
+    border-radius: 4px;
+    min-height: 24px;
+}
+QScrollBar::handle:vertical:hover {
+    background: #434959;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+}
 """
+
+
+class CustomTitleBarWidget(QFrame):
+    """Кастомна верхня смуга вікна або діалогу з перетягуванням та кнопками керування."""
+
+    minimize_clicked = pyqtSignal()
+    toggle_maximize_clicked = pyqtSignal()
+    close_clicked = pyqtSignal()
+
+    def __init__(
+        self,
+        title_text: str,
+        parent=None,
+        show_window_controls: bool = True,
+    ):
+        super().__init__(parent)
+        self.setObjectName("WindowTitleBar")
+        self.setFixedHeight(40 if show_window_controls else 36)
+        self._drag_offset: Optional[QPoint] = None
+        self._allow_maximize = show_window_controls
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(14, 5, 8, 5)
+        layout.setSpacing(8)
+
+        accent_dot = QLabel()
+        accent_dot.setFixedSize(10, 10)
+        accent_dot.setStyleSheet("background-color: #F43F5E; border-radius: 5px;")
+        layout.addWidget(accent_dot)
+
+        self._title_lbl = QLabel(title_text)
+        self._title_lbl.setObjectName("WindowTitleText")
+        layout.addWidget(self._title_lbl)
+
+        layout.addStretch()
+
+        self._max_btn: Optional[QPushButton] = None
+        if show_window_controls:
+            min_btn = QPushButton("—")
+            min_btn.setObjectName("WinBtn")
+            min_btn.setFixedSize(30, 26)
+            min_btn.setToolTip("Згорнути")
+            min_btn.clicked.connect(self.minimize_clicked.emit)
+
+            self._max_btn = QPushButton("□")
+            self._max_btn.setObjectName("WinBtn")
+            self._max_btn.setFixedSize(30, 26)
+            self._max_btn.setToolTip("Розгорнути / Відновити")
+            self._max_btn.clicked.connect(self.toggle_maximize_clicked.emit)
+
+            layout.addWidget(min_btn)
+            layout.addWidget(self._max_btn)
+
+        close_btn = QPushButton("✕")
+        close_btn.setObjectName("WinCloseBtn")
+        close_btn.setFixedSize(28 if not show_window_controls else 30, 24 if not show_window_controls else 26)
+        close_btn.setToolTip("Закрити")
+        close_btn.clicked.connect(self.close_clicked.emit)
+        layout.addWidget(close_btn)
+
+    def set_maximized_state(self, is_max: bool) -> None:
+        if self._max_btn is not None:
+            self._max_btn.setText("❐" if is_max else "□")
+
+    def mousePressEvent(self, event) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            win = self.window()
+            if win is not None:
+                self._drag_offset = (
+                    event.globalPosition().toPoint() - win.frameGeometry().topLeft()
+                )
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event) -> None:
+        if (
+            self._drag_offset is not None
+            and (event.buttons() & Qt.MouseButton.LeftButton)
+        ):
+            win = self.window()
+            if win is not None and not win.isMaximized():
+                win.move(event.globalPosition().toPoint() - self._drag_offset)
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:
+        self._drag_offset = None
+        super().mouseReleaseEvent(event)
+
+    def mouseDoubleClickEvent(self, event) -> None:
+        if self._allow_maximize and event.button() == Qt.MouseButton.LeftButton:
+            self.toggle_maximize_clicked.emit()
+        super().mouseDoubleClickEvent(event)
+
+
+class MonoDialog(QDialog):
+    """Базовий безрамковий діалог у темному стилі Monobank з кастомною верхньою полосою."""
+
+    def __init__(self, window_title: str, width: int, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(window_title)
+        self.setWindowFlags(
+            Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint
+        )
+        self.setFixedWidth(width)
+
+        self._root_layout = QVBoxLayout(self)
+        self._root_layout.setContentsMargins(14, 12, 14, 18)
+        self._root_layout.setSpacing(12)
+
+        self._title_bar = CustomTitleBarWidget(
+            window_title, self, show_window_controls=False
+        )
+        self._title_bar.close_clicked.connect(self.reject)
+        self._root_layout.addWidget(self._title_bar)
 
 
 def _format_initial_number(value: float) -> str:
@@ -383,17 +618,17 @@ class SavingsPieChartWidget(QWidget):
 
         if total <= 0:
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(QColor("#E5E7EB"))
+            painter.setBrush(QColor("#272A32"))
             painter.drawEllipse(rect)
 
             inner_margin = diameter * 0.27
             inner_rect = rect.adjusted(
                 inner_margin, inner_margin, -inner_margin, -inner_margin
             )
-            painter.setBrush(QColor("#FFFFFF"))
+            painter.setBrush(QColor("#191B20"))
             painter.drawEllipse(inner_rect)
 
-            painter.setPen(QColor("#6B7280"))
+            painter.setPen(QColor("#9CA3AF"))
             painter.setFont(QFont("Segoe UI", 10, QFont.Weight.DemiBold))
             painter.drawText(
                 inner_rect,
@@ -413,7 +648,7 @@ class SavingsPieChartWidget(QWidget):
 
             painter.setBrush(QColor(color_hex))
             if len(active_slices) > 1:
-                painter.setPen(QPen(QColor("#FFFFFF"), 2.0))
+                painter.setPen(QPen(QColor("#191B20"), 2.0))
             else:
                 painter.setPen(Qt.PenStyle.NoPen)
 
@@ -425,10 +660,10 @@ class SavingsPieChartWidget(QWidget):
             inner_margin, inner_margin, -inner_margin, -inner_margin
         )
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor("#FFFFFF"))
+        painter.setBrush(QColor("#191B20"))
         painter.drawEllipse(inner_rect)
 
-        painter.setPen(QColor("#6B7280"))
+        painter.setPen(QColor("#9CA3AF"))
         painter.setFont(QFont("Segoe UI", 9, QFont.Weight.Medium))
         top_text_rect = QRectF(
             inner_rect.left(),
@@ -438,7 +673,7 @@ class SavingsPieChartWidget(QWidget):
         )
         painter.drawText(top_text_rect, Qt.AlignmentFlag.AlignCenter, "Усього накопичено")
 
-        painter.setPen(QColor("#111827"))
+        painter.setPen(QColor("#FFFFFF"))
         painter.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         val_text_rect = QRectF(
             inner_rect.left() + 4,
@@ -453,7 +688,7 @@ class SavingsPieChartWidget(QWidget):
         )
 
 
-class ManualSavingDialog(QDialog):
+class ManualSavingDialog(MonoDialog):
     """Діалог додавання або редагування накопичень з вибором кольору."""
 
     def __init__(
@@ -462,11 +697,11 @@ class ManualSavingDialog(QDialog):
         used_colors: Optional[List[str]] = None,
         parent=None,
     ):
-        super().__init__(parent)
-        self.setWindowTitle(
-            "Редагувати накопичення" if existing else "Додати накопичення"
+        super().__init__(
+            "Редагувати накопичення" if existing else "Додати накопичення",
+            width=400,
+            parent=parent,
         )
-        self.setFixedWidth(400)
 
         self.category_type: str = existing.category_type if existing else "other_bank"
         self.entry_title: str = existing.title if existing else ""
@@ -478,10 +713,7 @@ class ManualSavingDialog(QDialog):
         )
 
         self._swatch_buttons: List[Tuple[str, QPushButton]] = []
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(22, 22, 22, 22)
-        layout.setSpacing(12)
+        layout = self._root_layout
 
         header = QLabel(
             "Редагувати запис" if existing else "Нове накопичення"
@@ -580,13 +812,13 @@ class ManualSavingDialog(QDialog):
         selected_upper = self.color_hex.upper()
         for hex_code, btn in self._swatch_buttons:
             is_selected = hex_code.upper() == selected_upper
-            border = "2.5px solid #111827" if is_selected else "1px solid #D1D5DB"
+            border = "2.5px solid #FFFFFF" if is_selected else "1px solid #3F4451"
             btn.setStyleSheet(
                 f"QPushButton {{ background-color: {hex_code}; border: {border}; border-radius: 12px; padding: 0px; }}"
             )
         self._custom_color_btn.setStyleSheet(
             f"QPushButton {{ background-color: {self.color_hex}; color: #FFFFFF; "
-            f"border: 1px solid #111827; border-radius: 8px; padding: 2px 10px; font-weight: 600; font-size: 11px; }}"
+            f"border: 1px solid #FFFFFF; border-radius: 8px; padding: 2px 10px; font-weight: 700; font-size: 11px; }}"
         )
 
     def _on_save(self) -> None:
@@ -611,9 +843,9 @@ class ManualSavingCardWidget(QFrame):
 
     edit_requested = pyqtSignal(str)
     delete_requested = pyqtSignal(str)
-    color_change_requested = pyqtSignal(str, str)  # (entry_id, new_hex)
+    color_change_requested = pyqtSignal(str, str)
 
-    def __init__(self, entry: ManualSavingEntry, fallback_color: str = "#2563EB"):
+    def __init__(self, entry: ManualSavingEntry, fallback_color: str = "#3B82F6"):
         super().__init__()
         self.setObjectName("Card")
         self._entry_id = entry.entry_id
@@ -664,8 +896,8 @@ class ManualSavingCardWidget(QFrame):
 
     def _apply_dot_style(self) -> None:
         self._color_dot_btn.setStyleSheet(
-            f"QPushButton {{ background-color: {self._color_hex}; border: 1.5px solid #D1D5DB; border-radius: 9px; padding: 0px; }}"
-            f"QPushButton:hover {{ border: 2px solid #111827; }}"
+            f"QPushButton {{ background-color: {self._color_hex}; border: 1.5px solid #3F4451; border-radius: 9px; padding: 0px; }}"
+            f"QPushButton:hover {{ border: 2px solid #FFFFFF; }}"
         )
 
     def _pick_new_color(self) -> None:
@@ -680,19 +912,15 @@ class ManualSavingCardWidget(QFrame):
             self.color_change_requested.emit(self._entry_id, self._color_hex)
 
 
-class QrAuthDialog(QDialog):
+class QrAuthDialog(MonoDialog):
     """Модальне вікно швидкої авторизації через портал Monobank."""
 
     def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Підключення Monobank API")
-        self.setFixedWidth(420)
+        super().__init__("Підключення Monobank API", width=420, parent=parent)
         self.token_value: str = ""
         self.remember_me: bool = True
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(14)
+        layout = self._root_layout
 
         title = QLabel("Підключення Monobank")
         title.setObjectName("AppTitle")
@@ -762,21 +990,17 @@ class QrAuthDialog(QDialog):
         self.accept()
 
 
-class CustomJarDialog(QDialog):
+class CustomJarDialog(MonoDialog):
     """Модальне вікно створення власної накопичувальної банки."""
 
     def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Нова власна банка")
-        self.setFixedWidth(380)
+        super().__init__("Нова власна банка", width=390, parent=parent)
 
         self.jar_title: str = ""
         self.current_balance: float = 0.0
         self.goal_amount: float = 0.0
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(22, 22, 22, 22)
-        layout.setSpacing(12)
+        layout = self._root_layout
 
         header = QLabel("Створити власну банку")
         header.setObjectName("AppTitle")
@@ -842,18 +1066,14 @@ class CustomJarDialog(QDialog):
         self.accept()
 
 
-class TopUpJarDialog(QDialog):
+class TopUpJarDialog(MonoDialog):
     """Діалог поповнення або коригування суми власної банки."""
 
     def __init__(self, jar: SavingsJar, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle(f"Зміна балансу — {jar.title}")
-        self.setFixedWidth(360)
+        super().__init__(f"Зміна балансу — {jar.title}", width=370, parent=parent)
         self.delta_amount: float = 0.0
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(22, 22, 22, 22)
-        layout.setSpacing(12)
+        layout = self._root_layout
 
         title = QLabel(jar.title)
         title.setObjectName("AppTitle")

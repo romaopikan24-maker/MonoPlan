@@ -2,7 +2,6 @@ from datetime import datetime
 import inspect
 from typing import Dict, List, Optional, Tuple
 import uuid
-import webbrowser
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
@@ -29,6 +28,7 @@ from PyQt6.QtWidgets import (
 from ai_advisor import (
     ChatHistory,
     ChatMessage,
+    DEFAULT_GEMINI_API_KEY,
     GeminiFinancialAdvisor,
     IFinancialAdvisor,
     LocalHeuristicAdvisor,
@@ -47,10 +47,13 @@ from ui_widgets import (
     AddJarButtonWidget,
     ChatBubbleWidget,
     CustomJarDialog,
+    CustomTitleBarWidget,
     JarCardWidget,
     LiabilityCardWidget,
     ManualSavingCardWidget,
     ManualSavingDialog,
+    MONO_ACCOUNT_DEFAULT_COLOR,
+    MONO_JARS_DEFAULT_COLOR,
     QrAuthDialog,
     SavingsPieChartWidget,
     TopUpJarDialog,
@@ -63,6 +66,9 @@ class MonoPlanWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("MonoPlan — Цілі, Борги та Monobank API")
+        self.setWindowFlags(
+            Qt.WindowType.Window | Qt.WindowType.FramelessWindowHint
+        )
         self.resize(980, 720)
 
         self._session_repo = UserSessionRepository()
@@ -87,14 +93,36 @@ class MonoPlanWindow(QMainWindow):
         self._init_chat_welcome()
         self._restore_or_start_demo()
 
+    def _toggle_maximize_window(self) -> None:
+        if self.isMaximized():
+            self.showNormal()
+            self._title_bar.set_maximized_state(False)
+        else:
+            self.showMaximized()
+            self._title_bar.set_maximized_state(True)
+
+    def changeEvent(self, event) -> None:
+        if hasattr(self, "_title_bar"):
+            self._title_bar.set_maximized_state(self.isMaximized())
+        super().changeEvent(event)
+
     def _init_ui(self) -> None:
         root = QWidget()
         root.setObjectName("Root")
         self.setCentralWidget(root)
 
         main_layout = QVBoxLayout(root)
-        main_layout.setContentsMargins(20, 20, 20, 20)
-        main_layout.setSpacing(16)
+        main_layout.setContentsMargins(16, 12, 16, 16)
+        main_layout.setSpacing(12)
+
+        # --- КАСТОМНА ВЕРХНЯ ПОЛОСА ---
+        self._title_bar = CustomTitleBarWidget(
+            "MonoPlan — Цілі, Борги та Monobank API", self
+        )
+        self._title_bar.minimize_clicked.connect(self.showMinimized)
+        self._title_bar.toggle_maximize_clicked.connect(self._toggle_maximize_window)
+        self._title_bar.close_clicked.connect(self.close)
+        main_layout.addWidget(self._title_bar)
 
         # --- ВЕРХНЯ ПАНЕЛЬ АВТОРИЗАЦІЇ ТА ПРОФІЛЮ ---
         top_bar = QFrame()
@@ -192,6 +220,7 @@ class MonoPlanWindow(QMainWindow):
         jars_scroll = QScrollArea()
         jars_scroll.setWidgetResizable(True)
         jars_container = QWidget()
+        jars_container.setObjectName("ScrollContent")
         self._jars_layout = QVBoxLayout(jars_container)
         self._jars_layout.setContentsMargins(0, 4, 4, 0)
         self._jars_layout.setSpacing(10)
@@ -218,6 +247,7 @@ class MonoPlanWindow(QMainWindow):
         debts_scroll = QScrollArea()
         debts_scroll.setWidgetResizable(True)
         debts_container = QWidget()
+        debts_container.setObjectName("ScrollContent")
         self._debts_layout = QVBoxLayout(debts_container)
         self._debts_layout.setContentsMargins(0, 4, 4, 0)
         self._debts_layout.setSpacing(10)
@@ -269,6 +299,7 @@ class MonoPlanWindow(QMainWindow):
         manual_scroll = QScrollArea()
         manual_scroll.setWidgetResizable(True)
         manual_container = QWidget()
+        manual_container.setObjectName("ScrollContent")
         self._manual_savings_layout = QVBoxLayout(manual_container)
         self._manual_savings_layout.setContentsMargins(0, 4, 4, 0)
         self._manual_savings_layout.setSpacing(10)
@@ -343,36 +374,18 @@ class MonoPlanWindow(QMainWindow):
         card_layout.setContentsMargins(16, 14, 16, 14)
         card_layout.setSpacing(10)
 
-        key_row = QHBoxLayout()
-        key_lbl = QLabel("Gemini API Key:")
-        key_lbl.setObjectName("SectionTitle")
-
-        self._gemini_key_input = QLineEdit()
-        self._gemini_key_input.setPlaceholderText(
-            "Безкоштовний ключ з aistudio.google.com (або спілкуйтесь у базовому режимі)"
-        )
-        self._gemini_key_input.setEchoMode(QLineEdit.EchoMode.Password)
-
-        get_key_btn = QPushButton("Отримати ключ")
-        get_key_btn.setObjectName("SecondaryBtn")
-        get_key_btn.clicked.connect(
-            lambda: webbrowser.open("https://aistudio.google.com/apikey")
-        )
-
-        save_key_btn = QPushButton("Зберегти")
-        save_key_btn.setObjectName("SecondaryBtn")
-        save_key_btn.clicked.connect(self._on_save_gemini_key)
+        top_row = QHBoxLayout()
+        chat_title = QLabel("Асистент MonoPlan AI")
+        chat_title.setObjectName("SectionTitle")
 
         clear_chat_btn = QPushButton("Очистити чат")
         clear_chat_btn.setObjectName("SecondaryBtn")
         clear_chat_btn.clicked.connect(self._on_clear_chat)
 
-        key_row.addWidget(key_lbl)
-        key_row.addWidget(self._gemini_key_input, stretch=1)
-        key_row.addWidget(get_key_btn)
-        key_row.addWidget(save_key_btn)
-        key_row.addWidget(clear_chat_btn)
-        card_layout.addLayout(key_row)
+        top_row.addWidget(chat_title)
+        top_row.addStretch()
+        top_row.addWidget(clear_chat_btn)
+        card_layout.addLayout(top_row)
 
         self._chat_scroll = QScrollArea()
         self._chat_scroll.setWidgetResizable(True)
@@ -452,7 +465,7 @@ class MonoPlanWindow(QMainWindow):
                 client_name="Користувач MonoPlan",
                 token="",
                 strategy_index=self._strategy_combo.currentIndex(),
-                gemini_api_key=self._gemini_key_input.text().strip(),
+                gemini_api_key="",
                 cached_jars=jars_to_store,
                 jar_order=list(self._jar_order),
                 manual_savings=manual_to_store,
@@ -524,8 +537,8 @@ class MonoPlanWindow(QMainWindow):
 
     def _on_add_manual_saving(self) -> None:
         used_colors = [
-            "#10B981",
-            "#111827",
+            MONO_JARS_DEFAULT_COLOR,
+            MONO_ACCOUNT_DEFAULT_COLOR,
             *(m.color_hex for m in self._manual_savings if m.color_hex),
         ]
         dialog = ManualSavingDialog(used_colors=used_colors, parent=self)
@@ -549,9 +562,13 @@ class MonoPlanWindow(QMainWindow):
         if target is None:
             return
         used_colors = [
-            "#10B981",
-            "#111827",
-            *(m.color_hex for m in self._manual_savings if m.entry_id != entry_id and m.color_hex),
+            MONO_JARS_DEFAULT_COLOR,
+            MONO_ACCOUNT_DEFAULT_COLOR,
+            *(
+                m.color_hex
+                for m in self._manual_savings
+                if m.entry_id != entry_id and m.color_hex
+            ),
         ]
         dialog = ManualSavingDialog(existing=target, used_colors=used_colors, parent=self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
@@ -610,22 +627,6 @@ class MonoPlanWindow(QMainWindow):
         if scrollbar is not None:
             scrollbar.setValue(scrollbar.maximum())
 
-    def _on_save_gemini_key(self) -> None:
-        api_key = self._gemini_key_input.text().strip()
-        if self._current_session is None:
-            self._current_session = UserSession(
-                client_name="Користувач MonoPlan",
-                token="",
-                strategy_index=self._strategy_combo.currentIndex(),
-                gemini_api_key=api_key,
-                jar_order=list(self._jar_order),
-                manual_savings=[m.to_dict() for m in self._manual_savings],
-            )
-        else:
-            self._current_session.gemini_api_key = api_key
-        self._session_repo.save_session(self._current_session)
-        self._status_label.setText("Ключ Gemini API збережено")
-
     def _send_chat_message(self, raw_text: str) -> None:
         text = raw_text.strip()
         if not text or not self._send_chat_btn.isEnabled():
@@ -648,10 +649,9 @@ class MonoPlanWindow(QMainWindow):
         self._send_chat_btn.setEnabled(False)
         self._chat_input.setEnabled(False)
 
-        api_key = self._gemini_key_input.text().strip()
         advisor: IFinancialAdvisor = (
-            GeminiFinancialAdvisor(api_key)
-            if api_key
+            GeminiFinancialAdvisor()
+            if DEFAULT_GEMINI_API_KEY.strip()
             else LocalHeuristicAdvisor()
         )
 
@@ -726,8 +726,6 @@ class MonoPlanWindow(QMainWindow):
                 ManualSavingEntry.from_dict(m) for m in saved.manual_savings
             ]
             self._mono_account_balance = float(saved.cached_account_balance)
-            if saved.gemini_api_key:
-                self._gemini_key_input.setText(saved.gemini_api_key)
 
             restored_jars = [SavingsJar.from_dict(j) for j in saved.cached_jars]
 
@@ -856,12 +854,11 @@ class MonoPlanWindow(QMainWindow):
         self._status_label.setText(status_text)
 
         if isinstance(source, MonobankApiAdapter) and self._remember_next_login:
-            saved_ai_key = self._gemini_key_input.text().strip()
             session = UserSession(
                 client_name=client_name,
                 token=source.token,
                 strategy_index=self._strategy_combo.currentIndex(),
-                gemini_api_key=saved_ai_key,
+                gemini_api_key="",
                 cached_jars=[j.to_dict() for j in self._jars],
                 cached_liabilities=[d.to_dict() for d in self._liabilities],
                 cached_transactions=[t.to_dict() for t in self._transactions],
@@ -935,38 +932,32 @@ class MonoPlanWindow(QMainWindow):
         self._jars_layout.addStretch()
 
     def _render_savings_chart(self) -> None:
-        slices: List[Tuple[str, float, str]] = []
-        used_colors = ["#10B981", "#111827", "#8B5CF6"]
+        mono_jars_sum = sum(
+            j.current_balance for j in self._jars if not j.is_custom
+        )
+        custom_jars_sum = sum(
+            j.current_balance for j in self._jars if j.is_custom
+        )
 
-        # 1. Додаємо кожну банку Monobank окремим сектором
-        for jar in self._jars:
-            if not jar.is_custom and jar.current_balance > 0:
-                slices.append((f"Банка: {jar.title}", jar.current_balance, "#10B981"))
-
-        # 2. Додаємо поточний рахунок Monobank (якщо баланс існує, навіть 0 або більше)
-        account_val = getattr(self, "_mono_account_balance", 0.0)
-        # Якщо рахунок нульовий, але є в сесії, перевіримо його
-        if account_val == 0.0 and self._current_session and hasattr(self._current_session, "cached_account_balance"):
-            account_val = float(self._current_session.cached_account_balance)
-
-        slices.append(("Поточний рахунок Monobank", account_val, "#111827"))
-
-        # 3. Додаємо власні цільові банки, створені вручну
-        for jar in self._jars:
-            if jar.is_custom and jar.current_balance > 0:
-                slices.append((f"Власна ціль: {jar.title}", jar.current_balance, "#8B5CF6"))
-
-        # 4. Додаємо ручні збереження (інші банки та готівка)
+        used_colors = [MONO_JARS_DEFAULT_COLOR, MONO_ACCOUNT_DEFAULT_COLOR]
         for m in self._manual_savings:
             if not m.color_hex:
                 m.color_hex = pick_next_category_color(used_colors)
             used_colors.append(m.color_hex)
-            if m.amount > 0:
-                slices.append((m.title, m.amount, m.color_hex))
+
+        slices: List[Tuple[str, float, str]] = [
+            ("Банки Monobank (авто)", mono_jars_sum, MONO_JARS_DEFAULT_COLOR),
+            ("Рахунок Monobank (авто)", self._mono_account_balance, MONO_ACCOUNT_DEFAULT_COLOR),
+        ]
+
+        for m in self._manual_savings:
+            slices.append((m.title, m.amount, m.color_hex))
+
+        if custom_jars_sum > 0:
+            slices.append(("Власні цільові банки", custom_jars_sum, "#8B5CF6"))
 
         self._savings_pie.set_data(slices)
 
-        # Оновлення легенди під діаграмою
         self._clear_layout(self._legend_layout)
         total = sum(max(0.0, v) for _, v, _ in slices)
 
@@ -983,7 +974,7 @@ class MonoPlanWindow(QMainWindow):
             )
 
             name_lbl = QLabel(label_text)
-            name_lbl.setStyleSheet("font-size: 13px; font-weight: 500; color: #111827;")
+            name_lbl.setStyleSheet("font-size: 13px; font-weight: 500; color: #F4F4F6;")
 
             pct = (value / total * 100.0) if total > 0 else 0.0
             val_lbl = QLabel(f"<b>{value:,.2f} ₴</b> ({pct:.1f}%)")
@@ -995,7 +986,6 @@ class MonoPlanWindow(QMainWindow):
             row.addWidget(val_lbl)
             self._legend_layout.addWidget(row_widget)
 
-        # Оновлення списку ручних накопичень праворуч
         self._clear_layout(self._manual_savings_layout)
         if not self._manual_savings:
             empty = QLabel(
@@ -1006,7 +996,7 @@ class MonoPlanWindow(QMainWindow):
             self._manual_savings_layout.addWidget(empty)
         else:
             for entry in self._manual_savings:
-                card = ManualSavingCardWidget(entry, fallback_color="#2563EB")
+                card = ManualSavingCardWidget(entry, fallback_color="#3B82F6")
                 card.edit_requested.connect(self._on_edit_manual_saving)
                 card.delete_requested.connect(self._on_delete_manual_saving)
                 card.color_change_requested.connect(self._on_manual_entry_color_changed)
@@ -1056,7 +1046,7 @@ class MonoPlanWindow(QMainWindow):
 
                 top = QHBoxLayout()
                 name_lbl = QLabel(cat)
-                name_lbl.setStyleSheet("font-size: 12px; font-weight: 500;")
+                name_lbl.setStyleSheet("font-size: 12px; font-weight: 500; color: #F4F4F6;")
                 val_lbl = QLabel(f"{amount:,.2f} ₴ ({share}%)")
                 val_lbl.setObjectName("SubText")
                 top.addWidget(name_lbl)

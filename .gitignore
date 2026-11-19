@@ -2,6 +2,8 @@
 monoplan_session.json
 *.json
 
+secrets_config.py
+
 # Віртуальне середовище та кеш Python
 .venv/
 venv/
