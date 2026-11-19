@@ -1,0 +1,14 @@
+# Сесії та персональні токени (Monobank / Gemini API)
+monoplan_session.json
+*.json
+
+# Віртуальне середовище та кеш Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Налаштування IDE (PyCharm / VS Code)
+.idea/
+.vscode/
